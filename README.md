@@ -1,5 +1,5 @@
 # Tic Tac Toe
-Vibe coded to test out some AI agents. Image gallery at the end.
+Vibe coded to test out some AI agents. Image gallery at the end. \
 Image gallery at the bottom.
 
 Four board types (Classic 3×3, Big 4×4, Bigger 5×5, and a 3D Cube 4×4×4 with gravity). Single player (Easy, Medium, Hard AI), local two-player, and online rooms with guest nicknames, match history, a leaderboard, and emoji reactions.
