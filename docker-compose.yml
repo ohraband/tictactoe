@@ -1,0 +1,132 @@
+# Game + Postgres by default. Optional profiles:
+#   observability  Grafana, Loki, Alloy (logs) and Prometheus (metrics)
+#   redis          Redis plus two more game servers that share rooms through it
+#
+#   docker compose up -d --build                              game on :8080 (rooms in memory)
+#   docker compose --profile redis up -d --build              also game-a on :8081 and game-b on :8082, sharing rooms
+#   docker compose --profile observability up -d --build      also Grafana :3001 and Prometheus :9090
+x-game: &game
+  image: tictactoe-game
+  build: .
+  stop_grace_period: 15s                # time for graceful shutdown
+  restart: unless-stopped
+  environment: &game-env
+    DATABASE_URL: postgresql://game:${GAME_DB_PASSWORD:-gamepass}@gamedb:5432/tictactoe
+    TRUST_PROXY: ${TRUST_PROXY:-0}
+  depends_on:
+    gamedb:
+      condition: service_healthy
+
+services:
+  game:
+    <<: *game
+    ports:
+      - "8080:3000"                       # play at http://localhost:8080 (rooms in memory)
+
+  game-a:
+    <<: *game
+    profiles: ["redis"]
+    ports:
+      - "8081:3000"                       # http://localhost:8081
+    environment:
+      <<: *game-env
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      gamedb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  game-b:
+    <<: *game
+    profiles: ["redis"]
+    ports:
+      - "8082:3000"                       # http://localhost:8082
+    environment:
+      <<: *game-env
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      gamedb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  redis:
+    profiles: ["redis"]
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]   # rooms are short-lived, no persistence needed
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  gamedb:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: tictactoe
+      POSTGRES_USER: game
+      POSTGRES_PASSWORD: ${GAME_DB_PASSWORD:-gamepass}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U game -d tictactoe"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - game-db:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  loki:
+    profiles: ["observability"]
+    image: grafana/loki:3.0.0
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki-data:/loki
+    restart: unless-stopped
+
+  alloy:
+    profiles: ["observability"]
+    image: grafana/alloy:latest
+    command: run --server.http.listen-addr=0.0.0.0:12345 --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
+    volumes:
+      - ./observability/alloy.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+  prometheus:
+    profiles: ["observability"]
+    image: prom/prometheus:v2.53.0
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=7d"]
+    ports:
+      - "9090:9090"                       # Prometheus UI: http://localhost:9090
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    restart: unless-stopped
+
+  grafana:
+    profiles: ["observability"]
+    image: grafana/grafana:11.0.0
+    ports:
+      - "3001:3000"                       # dashboards at http://localhost:3001
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/tictactoe.json
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - loki
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  game-db:
+  loki-data:
+  grafana-data:
+  prometheus-data:

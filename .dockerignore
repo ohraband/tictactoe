@@ -1,0 +1,9 @@
+node_modules
+dist
+test
+docs
+.github
+*.zip
+.git
+.env
+tsconfig.sandbox*.json

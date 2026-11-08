@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: tictactoe
+    # Resolves every container of the "game" service, so scaled replicas are all scraped.
+    dns_sd_configs:
+      - names: ["game", "game-a", "game-b"]
+        type: A
+        port: 9100
