@@ -1,4 +1,6 @@
 # Tic Tac Toe
+Vibe coded to test out some AI agents. Image gallery at the end.
+Image gallery at the bottom.
 
 Four board types (Classic 3×3, Big 4×4, Bigger 5×5, and a 3D Cube 4×4×4 with gravity). Single player (Easy, Medium, Hard AI), local two-player, and online rooms with guest nicknames, match history, a leaderboard, and emoji reactions.
 
@@ -60,3 +62,15 @@ Needs Node 22.18 or newer. The database is optional.
 The cube is drawn on a plain canvas (no 3D library): drag to turn it, tap a peg to play. Under it are 16 peg buttons, which is how keyboards and screen readers play. Hard AI is exact on 3×3 and a time-limited search on the others.
 
 The game rules live in `shared/game.ts` and every board type uses the same engine, so adding a board type means adding one entry there.
+
+
+
+
+<div align="center">
+  <img src="images/4by4.jpg" width="45%" />
+  <img src="images/cube.png" width="45%" />
+  <img src="images/grafana.jpg" width="45%" />
+  <img src="images/menu.png" width="45%" />
+  <img src="images/prometeus.jpg" width="45%" />
+  <img src="images/start.png" width="45%" />
+</div>
